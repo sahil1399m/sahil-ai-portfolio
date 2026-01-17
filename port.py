@@ -1,325 +1,358 @@
 import streamlit as st
-from streamlit_lottie import st_lottie
-import requests
+import json
+import streamlit.components.v1 as components
 import google.generativeai as genai
-import random
+import uuid
 
 # --- Page Config ---
-st.set_page_config(page_title="Sahil Desai | Portfolio",
-                   layout="wide", page_icon="💼")
-# --- Apply Theme CSS ---
+st.set_page_config(
+    page_title="Sahil Desai | Portfolio",
+    layout="wide",
+    page_icon="⚡",
+    initial_sidebar_state="collapsed"
+)
 
-# --- Theme Toggle ---
-if "theme" not in st.session_state:
-    st.session_state["theme"] = "light"
-
-theme_toggle = st.toggle("🌙(Dark Mode)", value=(
-    st.session_state["theme"] == "dark"))
-st.session_state["theme"] = "dark" if theme_toggle else "light"
-
-# --- Apply Theme CSS ---
-
-
-def apply_theme(theme):
-    if theme == "dark":
-        st.markdown("""
-            <style>
-                body, .stApp { background-color: #1e1e1e; color: #ffffff; }
-                .css-18e3th9, .css-1d391kg { background-color: #262730; }
-                h1, h2, h3, h4, h5, h6, p, li, ul { color: #ffffff !important; }
-            </style>
-            """, unsafe_allow_html=True)
-    else:
-        st.markdown("""
-            <style>
-                body, .stApp { background-color: #ffffff; color: #000000; }
-                h1, h2, h3, h4, h5, h6, p, li, ul { color: #000000 !important; }
-            </style>
-            """, unsafe_allow_html=True)
-
-
-apply_theme(st.session_state["theme"])
-
-st.markdown("""
-    <style>
-    .fade-section {
-        opacity: 0;
-        transform: translateY(20px);
-        animation: fadeInUp 1s ease-out forwards;
-    }
-
-    @keyframes fadeInUp {
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-
-# --- Gemini API Key (Do Not Edit This Block) ---
+# --- Gemini Configuration ---
 try:
     api_key = st.secrets["GOOGLE_API_KEY"]
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel('gemini-2.5-flash')
-except Exception as e:
-    st.error(f"Gemini API Key error: {e}")
+except Exception:
     model = None
 
-# --- Lottie Animation Loader ---
+# --- Custom CSS (Global Styles) ---
+st.markdown("""
+<style>
+    /* IMPORT FONTS */
+    @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
 
+    /* GLOBAL THEME */
+    .stApp {
+        background-color: #020202;
+        background-image: 
+            radial-gradient(at 0% 0%, rgba(0, 243, 255, 0.05) 0px, transparent 50%),
+            radial-gradient(at 100% 100%, rgba(188, 19, 254, 0.05) 0px, transparent 50%);
+        color: #e0e0e0;
+        font-family: 'Rajdhani', sans-serif;
+    }
+    
+    /* TYPOGRAPHY */
+    h1, h2, h3 {
+        font-family: 'Rajdhani', sans-serif;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+    }
 
-def load_lottie_url(url):
+    p {
+        font-family: 'Rajdhani', sans-serif;
+        font-size: 1.15rem !important;
+        font-weight: 500;
+        color: #b0b0b0;
+        line-height: 1.5;
+    }
+
+    /* NEON TEXT EFFECTS */
+    .neon-cyan { color: #00f3ff; text-shadow: 0 0 10px rgba(0, 243, 255, 0.6); }
+    .neon-purple { color: #bc13fe; text-shadow: 0 0 10px rgba(188, 19, 254, 0.6); }
+
+    /* PROJECT CARDS */
+    .neon-card {
+        background: rgba(20, 20, 20, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-left: 4px solid #333;
+        border-radius: 8px;
+        padding: 30px;
+        margin-bottom: 20px;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s ease-in-out;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        height: 100%;
+    }
+    
+    .neon-card::before {
+        content: ""; position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+        background: linear-gradient(120deg, transparent, rgba(0, 243, 255, 0.15), transparent);
+        transition: all 0.6s;
+    }
+    .neon-card:hover::before { left: 100%; }
+    .neon-card:hover {
+        transform: translateY(-8px) scale(1.01);
+        border-left: 4px solid #00f3ff;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 20px rgba(0, 243, 255, 0.4);
+        background: rgba(30, 30, 30, 0.9);
+    }
+
+    /* TECH BADGES */
+    .tech-badge {
+        font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: #00f3ff;
+        background: rgba(0, 243, 255, 0.08); border: 1px solid rgba(0, 243, 255, 0.3);
+        padding: 4px 10px; border-radius: 4px; margin-right: 8px; display: inline-block;
+        transition: 0.3s; margin-bottom: 5px;
+    }
+    .tech-badge:hover { background: rgba(0, 243, 255, 0.2); box-shadow: 0 0 10px rgba(0, 243, 255, 0.4); cursor: default; }
+
+    /* TERMINAL INPUT */
+    .stTextInput input {
+        background-color: #080808 !important; border: 1px solid #333 !important;
+        color: #00f3ff !important; font-family: 'JetBrains Mono', monospace; font-size: 1rem;
+    }
+    .stTextInput input:focus { border-color: #00f3ff !important; box-shadow: 0 0 15px rgba(0, 243, 255, 0.15) !important; }
+
+    /* HIDE DEFAULT ELEMENTS */
+    #MainMenu {visibility: hidden;} footer {visibility: hidden;} .block-container {padding-top: 3rem; padding-bottom: 3rem;}
+</style>
+""", unsafe_allow_html=True)
+
+# --- HELPER: Load Lottie Local File ---
+def load_lottiefile(filepath: str):
     try:
-        r = requests.get(url)
-        if r.status_code == 200:
-            return r.json()
-    except:
+        with open(filepath, "r", encoding='utf-8') as f:
+            return json.load(f)
+    except FileNotFoundError:
         return None
-    return None
-
-
-# --- Lottie Animations ---
-lottie_hero = load_lottie_url(
-    "https://assets10.lottiefiles.com/packages/lf20_touohxv0.json")  # Rocket launch
-lottie_about = load_lottie_url(
-    "https://assets2.lottiefiles.com/packages/lf20_4kx2q32n.json")
-lottie_projects = load_lottie_url(
-    "https://assets2.lottiefiles.com/packages/lf20_x1gjdldd.json")  # Projects
-lottie_chatbot = load_lottie_url(
-    "https://assets2.lottiefiles.com/packages/lf20_0yfsb3a1.json")  # Chatbot
-lottie_footer = load_lottie_url(
-    "https://assets2.lottiefiles.com/packages/lf20_3rwasyjy.json")   # Thank you
-
-
-# --- Function to load Lottie animation ---
-
-def load_lottieurl(url: str):
-    r = requests.get(url)
-    if r.status_code != 200:
+    except Exception as e:
         return None
-    return r.json()
 
+# --- HELPER: Render Lottie in Neon Box (Fixed Method) ---
+def st_lottie_neon(json_data, height=300, key=None):
+    if json_data is None:
+        st.error("Animation file not found or invalid.")
+        return
+    
+    # Generate a unique ID for the Javascript to target
+    unique_id = f"lottie_{uuid.uuid4().hex}"
+    
+    # Dump JSON to string for Javascript embedding
+    json_str = json.dumps(json_data)
+    
+    # HTML Component with JS Loader
+    html_code = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+        <style>
+            body {{ margin: 0; overflow: hidden; background: transparent; }}
+            .neon-container {{
+                background: rgba(10, 10, 10, 0.6);
+                border: 2px solid #00f3ff;
+                border-radius: 15px;
+                padding: 15px;
+                /* Subtract padding and border from height */
+                height: {height-40}px; 
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 0 20px rgba(0, 243, 255, 0.4), inset 0 0 15px rgba(0, 243, 255, 0.1);
+                backdrop-filter: blur(5px);
+                animation: pulse-border 4s infinite alternate;
+                margin: 5px;
+            }}
+            
+            @keyframes pulse-border {{
+                0% {{ border-color: #00f3ff; box-shadow: 0 0 20px rgba(0, 243, 255, 0.4); }}
+                100% {{ border-color: #bc13fe; box-shadow: 0 0 30px rgba(188, 19, 254, 0.6); }}
+            }}
+            
+            lottie-player {{ width: 100%; height: 100%; }}
+        </style>
+    </head>
+    <body>
+        <div class="neon-container">
+            <lottie-player 
+                id="{unique_id}" 
+                background="transparent" 
+                speed="1" 
+                loop 
+                autoplay>
+            </lottie-player>
+        </div>
+        <script>
+            // Safely load the animation data using JavaScript
+            const animData = {json_str};
+            const player = document.getElementById("{unique_id}");
+            player.load(animData);
+        </script>
+    </body>
+    </html>
+    """
+    components.html(html_code, height=height)
 
-# Example Lottie animation (developer / person working)
-lottie_person = load_lottieurl(
-    "https://assets10.lottiefiles.com/packages/lf20_w51pcehl.json")
+# --- LOAD ASSETS ---
+# Make sure these filenames match exactly what is in your folder
+lottie_hero = load_lottiefile("Background looping animation.json")
+lottie_about = load_lottiefile("Coding.json") 
+lottie_chat = load_lottiefile("Typing Animation.json")
 
-# --- Hero Section ---
-col1, col2 = st.columns([2, 1])
+# --- 1. HERO SECTION ---
+col1, col2 = st.columns([1.8, 1], gap="medium")
 
 with col1:
+    st.markdown('<p style="color:#00f3ff; font-family:JetBrains Mono; font-size:1rem; margin-bottom:0;">> INITIALIZING_PORTFOLIO...</p>', unsafe_allow_html=True)
     st.markdown("""
-        <h1 style='font-size:2.8rem; font-family:Poppins;'>Hey, I'm <span style="background: linear-gradient(45deg, #6a11cb, #2575fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Sahil Desai 👋</span></h1>
-        <h3 style='color:#c5c5c5;'>2nd Year BTech EXTC | VJTI Mumbai</h3>
-        <p style='color:#dcdcdc;'>🚀 I’m passionate about <span style="color:#00b4d8;">Data Science</span>, <span style="color:#ff4d6d;">Machine Learning</span>, and <span style="color:#00b4d8;">DSA</span> — building smart systems that solve real-world problems.</p>
-        <p style='color:#dcdcdc;'>💻 Currently working on <span style="color:#ff4d6d;">ML model building</span>, <span style="color:#00b4d8;">data visualization</span>, and <span style="color:#00b4d8;">algorithmic thinking</span> to sharpen my skills.</p>
-        <p style='color:#dcdcdc;'>🧠 Exploring <span style="color:#00b4d8;">Competitive Programming</span> as a beginner — learning logic, problem-solving, and optimization step by step.</p>
-        <p style='color:#dcdcdc;'>🎯 Always <span style="color:#ff4d6d;">learning by building</span>, pushing limits, and creating intelligent solutions 🚀</p>
+        <h1 style='font-size: 5rem; line-height: 0.9; margin-bottom: 15px; color: white;'>
+            I AM <span class='neon-cyan'>Shressh sandip ghambir</span>
+        </h1>
+        <h3 style='font-size: 1.8rem; color: #888; margin-bottom: 25px;'>
+            ENGINEERING INTELLIGENCE & <span class='neon-purple'>SOLVING COMPLEXITY</span>
+        </h3>
+        <p>
+            VJTI Mumbai Sophomore (EXTC). I don't just write code; I architect systems. 
+            Bridging the gap between <b>Hardware (IoT)</b> and <b>High-Level Intelligence (ML)</b>.
+        </p>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("""
+        <div style="margin-top: 30px; margin-bottom: 30px;">
+            <span class="tech-badge">PYTHON</span>
+            <span class="tech-badge">TENSORFLOW</span>
+            <span class="tech-badge">C++</span>
+            <span class="tech-badge">ESP32</span>
+            <span class="tech-badge">STREAMLIT</span>
+        </div>
     """, unsafe_allow_html=True)
 
 with col2:
-    if lottie_person:
-        st_lottie(lottie_person, height=320, key="person")
+    # Using the fixed Neon Function
+    st_lottie_neon(lottie_hero, height=420, key="hero")
 
+st.markdown("---")
 
-if lottie_about:
-    st_lottie(lottie_about, height=350, key="hero")  # close fade-section div
+# --- 2. ABOUT ME ---
+st.markdown("<h2 style='margin-bottom: 30px;'><span class='neon-cyan'>//</span> ABOUT_ME</h2>", unsafe_allow_html=True)
 
+col_about_text, col_about_anim = st.columns([2, 1], gap="large")
 
-# --- About Me ---
-with st.container():
-    st.markdown("<div class='fade-section'>", unsafe_allow_html=True)
-    st.write("---")
+with col_about_text:
     st.markdown("""
-        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
-        <style>
-        .about-section h2 {
-            font-family: 'Poppins', sans-serif;
-            font-size: 32px;
-            color: #FF4B4B;
-        }
-        .about-section p {
-            font-family: 'Poppins', sans-serif;
-            font-size: 17px;
-            color: #999999;
-            line-height: 1.6;
-        }
-        </style>
+    <div class='neon-card'>
+        <p style='color: #eee;'>
+            I am an engineer at heart. My work focuses on the intersection of <b>embedded systems</b> 
+            and <b>algorithmic efficiency</b>.
+        </p>
+        <p>
+            Currently, I am deep-diving into Data Science architectures and Competitive Programming. 
+            My goal is simple: Build scalable, intelligent solutions for real-world hardware.
+        </p>
+    </div>
     """, unsafe_allow_html=True)
 
-    col1, col2 = st.columns([1, 1])
-    with col1:
-        st.markdown("""
-        <div class="about-section">
-    <h2>🧠 About Me</h2>
-    <p>I'm a curious tech enthusiast who enjoys spending hours building and experimenting with projects that combine logic and creativity. Whether it's tinkering with ESP32 boards, exploring AI models, or improving my problem-solving skills — I love learning by doing.</p>
-    <p>Offline, I’m a bit introverted and prefer quiet workspaces, but online I turn chatty — discussing ideas, tech, and memes alike 😄. I’m also a partial anime watcher (especially the thought-provoking ones) and enjoy discovering new tech tools and open-source projects.</p>
-    <p>My hobbies revolve around exploring emerging tech, brainstorming project ideas, and occasionally losing track of time while debugging or watching coding podcasts.</p>
-</div>
+with col_about_anim:
+    # Using the fixed Neon Function
+    st_lottie_neon(lottie_about, height=300, key="about")
 
-        """, unsafe_allow_html=True)
-    with col2:
-        if lottie_hero:
-            st_lottie(lottie_hero, height=280, key="about")
-    st.markdown("</div>", unsafe_allow_html=True)
+# --- 3. PROJECTS (2x2 Grid) ---
+st.write(" ")
+st.markdown("<h2 style='margin-bottom: 30px;'><span class='neon-cyan'>//</span> DEPLOYED_PROJECTS</h2>", unsafe_allow_html=True)
 
-# --- Projects Section ---
-with st.container():
-    st.markdown("<div class='fade-section'>", unsafe_allow_html=True)
-    st.write("---")
+row1_col1, row1_col2 = st.columns(2, gap="medium")
+row2_col1, row2_col2 = st.columns(2, gap="medium")
+
+# --- ROW 1 ---
+with row1_col1:
     st.markdown("""
-        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
-        <style>
-        .projects-section h2 {
-            font-family: 'Poppins', sans-serif;
-            font-size: 32px;
-            color: #FF4B4B;
-            margin-bottom: 15px;
-        }
-        .project-box {
-            font-family: 'Poppins', sans-serif;
-            font-size: 17px;
-            color: white;
-            margin-bottom: 15px;
-            padding: 15px;
-            border-radius: 10px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-        .box1 { background-color: #4CAF50; }   /* Green */
-        .box2 { background-color: #FF9800; }   /* Orange */
-        .box3 { background-color: #2196F3; }   /* Blue */
-
-        .dark .box1, .dark .box2, .dark .box3 {
-            filter: brightness(0.9);
-        }
-        </style>
+    <div class='neon-card'>
+        <h3 style='color: white; font-size: 1.6rem;'>🛡️ AIthentic: Deepfake Detector</h3>
+        <p style='font-size: 1rem;'>
+            High-precision detection system utilizing <b>EfficientNet-B3</b> and <b>Bi-LSTMs</b>. 
+            Features "Active Sampling" to analyze high-motion frames, achieving <b>96.7% accuracy</b>.
+        </p>
+        <div style="margin-top:15px;">
+            <span class='tech-badge'>DEEP LEARNING</span>
+            <span class='tech-badge'>COMPUTER VISION</span>
+            <span class='tech-badge'>PYTHON</span>
+        </div>
+    </div>
     """, unsafe_allow_html=True)
 
-    st.markdown("<div class='projects-section'><h2>🛠️ Projects</h2></div>",
-                unsafe_allow_html=True)
-
-    col1, col2 = st.columns([1.2, 1])
-    with col1:
-        st.markdown("""
-        <div class='project-box box1'>🤖 <b>Self-balancing Robot</b><br>
-        Built using ESP32 and MPU6050 for real-time motion balancing and control.</div>
-
-        <div class='project-box box2'>📊 <b>Smart Distance Monitoring System</b><br>
-        ESP32-powered IoT setup with OLED display and live web visualization using Chart.js.</div>
-
-        <div class='project-box box3'>🔍 <b>Fuzzy Name Search App</b><br>
-        Streamlit-based app using fuzzy string matching for intelligent name lookups and similarity ranking.</div>
-        """, unsafe_allow_html=True)
-
-    with col2:
-        if lottie_footer:
-            st_lottie(lottie_footer, height=400, key="footer")
-    st.markdown("</div>", unsafe_allow_html=True)
-
-# --- Gemini Chatbot Section ---
-with st.container():
-    st.markdown("<div class='fade-section'>", unsafe_allow_html=True)
-    st.write("---")
+with row1_col2:
     st.markdown("""
-        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
-        <style>
-        .chatbot-title {
-            font-family: 'Poppins', sans-serif;
-            font-size: 32px;
-            color: #FF4B4B;
-            margin-bottom: 0.2em;
-        }
-        .chat-caption {
-            font-family: 'Poppins', sans-serif;
-            font-size: 16px;
-            color: #666;
-            margin-bottom: 20px;
-        }
-        .chatbot-box {
-            background-color: #ffffff;
-            border-radius: 15px;
-            padding: 25px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.07);
-            font-family: 'Poppins', sans-serif;
-            color: #333;
-            margin-bottom: 20px;
-        }
-        .chatbot-response {
-            background-color: #f4f4f4;
-            padding: 15px;
-            margin-top: 10px;
-            border-left: 5px solid #FF4B4B;
-            border-radius: 10px;
-            font-family: 'Poppins', sans-serif;
-        }
-        .dark .chatbot-box {
-            background-color: #1e1e24 !important;
-            color: #dddddd !important;
-        }
-        .dark .chatbot-response {
-            background-color: #2c2f35 !important;
-            color: #e0e0e0 !important;
-            border-left: 5px solid #4B8BBE;
-        }
-        .dark .chat-caption {
-            color: #aaaaaa !important;
-        }
-        input[type="text"] {
-            font-family: 'Poppins', sans-serif;
-            padding: 10px;
-            border-radius: 8px;
-            border: 1px solid #cccccc;
-            width: 100%;
-        }
-        </style>
-
-        <div class='chatbot-title'>💬 Ask Me Anything About Sahil</div>
-        <div class='chat-caption'>Curious about Sahil’s journey, projects, or achievements? Just ask!</div>
+    <div class='neon-card'>
+        <h3 style='color: white; font-size: 1.6rem;'>🤖 Self-Balancing Bot</h3>
+        <p style='font-size: 1rem;'>
+            Autonomous stabilization using <b>ESP32 & MPU6050</b>. 
+            Implemented custom PID algorithms for millisecond-level reaction times to maintain equilibrium.
+        </p>
+        <div style="margin-top:15px;">
+            <span class='tech-badge'>C++</span>
+            <span class='tech-badge'>ROBOTICS</span>
+            <span class='tech-badge'>EMBEDDED</span>
+        </div>
+    </div>
     """, unsafe_allow_html=True)
 
-    col1, col2 = st.columns([1, 1])
-    with col1:
-        # st.markdown("<div class='chatbot-box'>", unsafe_allow_html=True)
-        user_input = st.text_input("🔎 Type your question here:")
+# --- ROW 2 ---
+with row2_col1:
+    st.markdown("""
+    <div class='neon-card'>
+        <h3 style='color: white; font-size: 1.6rem;'>📡 IoT Telemetry</h3>
+        <p style='font-size: 1rem;'>
+            Smart distance monitoring system with real-time web visualization.
+            Features <b>WebSockets</b> for zero-latency data streaming via Chart.js dashboards.
+        </p>
+        <div style="margin-top:15px;">
+            <span class='tech-badge'>IoT</span>
+            <span class='tech-badge'>ESP32</span>
+            <span class='tech-badge'>WEBSOCKETS</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-        if user_input and model:
-            with st.spinner("🤖 Thinking..."):
-                prompt = f"""
-    You are an AI assistant for Sahil Desai's portfolio. Only reveal personal background info if asked directly.
+with row2_col2:
+    st.markdown("""
+    <div class='neon-card'>
+        <h3 style='color: white; font-size: 1.6rem;'>🔍 Fuzzy Logic Search</h3>
+        <p style='font-size: 1rem;'>
+            High-efficiency search engine using <b>Levenshtein Distance</b>. 
+            Maps and ranks approximate string matches across large datasets instantly.
+        </p>
+        <div style="margin-top:15px;">
+            <span class='tech-badge'>NLP</span>
+            <span class='tech-badge'>PYTHON</span>
+            <span class='tech-badge'>ALGORITHMS</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    PRIVATE INFO (DO NOT reveal unless specifically asked):
-    - Was a JEE dropper in 2023
-    - Scored ~98 percentile in JEE Mains (2023, 2024), not qualified JEE Advanced
-    - Got 99.09 percentile in MHT-CET
-    - Admitted to VJTI via Defense Quota in 2024
-    - 8.22 CGPA in first year
-    - Allotted D-Block hostel on merit
-    - Had a girlfriend in 12th (keep name private)
+# --- 4. TERMINAL CHATBOT ---
+st.write(" ")
+st.markdown("---")
 
-    User asked: {user_input}
-    """
-                try:
-                    response = model.generate_content(prompt)
-                    st.success(response.text)
-                except Exception as e:
-                    st.error(f"❌ AI response failed: {e}")
+c_col1, c_col2 = st.columns([1.5, 1])
 
-        st.markdown("</div>", unsafe_allow_html=True)
+with c_col1:
+    st.markdown("<h3 class='neon-purple'>INTERACTIVE_TERMINAL</h3>", unsafe_allow_html=True)
+    st.markdown("<p style='font-family: JetBrains Mono; font-size: 0.9rem; color: #888;'>Run a query on the Sahil_Desai database:</p>", unsafe_allow_html=True)
+    
+    user_input = st.text_input("", placeholder="root@sahil:~$ ask_about_projects --verbose")
 
-    with col2:
-        if lottie_chatbot:
-            st_lottie(lottie_chatbot, height=280, key="chat")
-    st.markdown("</div>", unsafe_allow_html=True)
+    if user_input and model:
+        with st.spinner("Processing request..."):
+            prompt = f"""
+            You are a CLI portfolio assistant for Sahil Desai. 
+            Style: Technical, Concise, Professional.
+            Context: VJTI Student, 98% JEE, 8.22 CGPA, IoT/ML Developer.
+            Query: {user_input}
+            """
+            try:
+                response = model.generate_content(prompt)
+                st.markdown(f"""
+                <div style='background: #0d0d0d; border-left: 2px solid #00f3ff; padding: 20px; border-radius: 4px; font-family: JetBrains Mono; margin-top: 10px;'>
+                    <div style='color: #00f3ff; font-size: 0.8rem; margin-bottom: 5px;'>➜ OUTPUT:</div>
+                    <div style='color: #ccc; font-size: 1rem;'>{response.text}</div>
+                </div>
+                """, unsafe_allow_html=True)
+            except:
+                st.error("API Connection Failed.")
 
-# --- Footer ---
-with st.container():
-    st.markdown("<div class='fade-section'>", unsafe_allow_html=True)
-    st.write("---")
-    st.markdown("<h2>✨ Thanks for Visiting!</h2>", unsafe_allow_html=True)
-    st.write(
-        "This portfolio is built with Python, Streamlit, and love for innovation.")
-    if lottie_projects:
-        st_lottie(lottie_projects, height=200, key="projects")
-    st.markdown("</div>", unsafe_allow_html=True)
+with c_col2:
+    # Using the fixed Neon Function
+    st_lottie_neon(lottie_chat, height=250, key="chat")
+
+# --- FOOTER ---
+st.markdown("""
+    <div style='text-align: center; margin-top: 80px; color: #444; font-family: JetBrains Mono; font-size: 0.8rem;'>
+        // SYSTEM_STATUS: ONLINE | © 2024 SAHIL DESAI
+    </div>
+""", unsafe_allow_html=True)
