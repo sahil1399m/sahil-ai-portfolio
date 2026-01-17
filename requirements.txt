@@ -2,3 +2,5 @@ streamlit
 streamlit-lottie
 requests
 google-generativeai
+streamlit
+google-generativeai
